@@ -1,3 +1,4 @@
+import json
 import uuid
 from typing import List
 
@@ -5,6 +6,7 @@ from switchbot.client import SwitchBotClient
 from switchbot.devices import Device
 from switchbot.remotes import Remote
 from switchbot.scene import Scene
+from switchbot.webhook import Webhook
 
 __version__ = "2.3.1"
 
@@ -52,3 +54,38 @@ class SwitchBot:
             if scene.id == id:
                 return scene
         raise ValueError(f"Unknown scene {id}")
+
+    def webhooks(self) -> List[Webhook]:
+        try:
+            response = self.client.post(
+                'webhook/queryWebhook', data=json.dumps({'action': 'queryUrl'}))
+        except RuntimeError as e:
+            return []  # No webhooks here
+        return [Webhook(url) for url in response['body']['urls']]
+
+    def webhook(self, url: str) -> Webhook:
+        for webhook in self.webhooks():
+            if webhook.url == url:
+                return webhook
+        raise ValueError(f'Unknown webhook {url}')
+
+    def setupWebhook(self, url: str, deviceList: List[Device] = None) -> bool:
+        if deviceList:
+            raise 'deviceList in setupWebhook is not supported by API v1.1'
+
+        response = self.client.post(
+            'webhook/setupWebhook', data=json.dumps({'action': 'setupWebhook', 'url': url, 'deviceList': 'ALL'}))
+        return response['status_code'] == 100
+
+    def enableWebhook(self, webhook: Webhook, enable: bool = True) -> bool:
+        response = self.client.post('webhook/updateWebhook', data=json.dumps(
+            {'action': 'updateWebhook', 'config': {'url': webhook.url, 'enable': enable}}))
+        return response['status_code'] == 100
+
+    def disableWebhook(self, webhook: Webhook) -> bool:
+        return self.enableWebhook(webhook, False)
+
+    def deleteWebhook(self, webhook: Webhook) -> bool:
+        response = self.client.post(
+            'webhook/deleteWebhook', data=json.dumps({'action': 'deleteWebhook', 'url': webhook.url}))
+        return response['status_code'] == 100

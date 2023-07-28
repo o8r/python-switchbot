@@ -28,6 +28,7 @@ class SwitchBotClient:
         self.session.headers["t"] = str(timestamp)
         self.session.headers["sign"] = signature
         self.session.headers["nonce"] = nonce
+        self.session.headers['Content-type'] = 'application/json'
 
     def request(self, method: str, path: str, **kwargs) -> Any:
         url = f"{switchbot_host}/{path}"
